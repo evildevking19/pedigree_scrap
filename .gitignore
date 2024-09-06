@@ -3,6 +3,7 @@
 /res/orders
 /res/orders_backup
 /res/reports
+/res/utils
 .env
 
 __pycache__
