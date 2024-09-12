@@ -2,6 +2,7 @@ import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -39,8 +40,8 @@ def getGoogleService(service_name, version):
     
 def getGoogleDriver():
     chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--window-size=1000,300")
+    # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--log-level=3")
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
 
@@ -56,7 +57,7 @@ def getGoogleDriver():
 
 def getTextValue(list, index):
     try:
-        return list[index].select_one("div.block-name").get("title").title()
+        return list[index].find_element(By.CSS_SELECTOR, "div.block-name").get_attribute("title").title()
     except:
         return ""
     
@@ -83,8 +84,8 @@ def getColumnLabelByIndex(ind):
     return labels[ind]
 
 def getSireNameFromTable(table):
-    tds = table.select("td[id]")
-    sire_elem = [element for element in tds if element.get("id").endswith("M")]
+    tds = table.find_elements(By.CSS_SELECTOR, "td[id]")
+    sire_elem = [element for element in tds if element.get_attribute("id").endswith("M")]
     sire_name = getTextValue(sire_elem, 0)
     return sire_name
 
