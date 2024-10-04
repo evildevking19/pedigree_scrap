@@ -1,8 +1,10 @@
 import time, sys, requests
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
+import pycurl
+from io import BytesIO
+from bs4 import BeautifulSoup
 from constants import *
+
+headers = ["User-Agent: Python-PycURL", "Accept: */*"]
 
 class Unbuffered(object):
    def __init__(self, stream):
@@ -18,45 +20,57 @@ class Unbuffered(object):
 
 def searchNameFromABP(service, sheetId, sheetName, indexOfHorseHeader, horse_name, index):
     sheet_data = []
-    global driver
-    if driver is None:
-        driver = getGoogleDriver()
-    driver.get(f"https://beta.allbreedpedigree.com/search?query_type=check&search_bar=horse&g=5&inbred=Standard&breed=&query={horse_name.replace(' ', '+')}")
-    WebDriverWait(driver, 10).until(lambda browser: browser.execute_script("return document.readyState") == "complete")
-    try:
-        close_btn = driver.find_element(By.CSS_SELECTOR, "button.btn-close")
-        ActionChains(driver).move_to_element(close_btn).click(close_btn).perform()
-    except: pass
-
-    time.sleep(0.5)
-    try:
-        table = driver.find_element(By.CSS_SELECTOR, "table.pedigree-table")
+    horse_name = horse_name.replace(" ", "+").replace("'", "")
+    buffer = BytesIO()
+    c = pycurl.Curl()
+    c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?query_type=check&search_bar=horse&g=5&inbred=Standard&breed=&query={horse_name}')
+    c.setopt(c.HTTPHEADER, headers)
+    c.setopt(c.WRITEDATA, buffer)
+    c.perform()
+    c.close()
+    r = buffer.getvalue().decode('utf-8')
+    soup = BeautifulSoup(r, 'html.parser')
+    table = soup.select_one("table.pedigree-table")
+    if table != None:
         sheet_data.append(getSheetDataFrom(table))
-    except:
-        try:
-            tds = driver.find_elements(By.CSS_SELECTOR, "table.layout-table td[class]:nth-child(1)")
+    else:
+        tds = soup.select("table.layout-table td[class]:nth-child(1)")
+        if tds != None or len(tds) != 0:
             txt_vals = []
             links = []
             for td in tds:
                 txt_vals.append(td.text)
-                links.append(td.find_element(By.TAG_NAME, "a").get_attribute("href"))
-            indexes = [x for x in txt_vals if x.lower() == horse_name.lower()]
+                links.append(td.select_one("a").get("href"))
+            indexes = [x.strip() for x in txt_vals if x.strip().lower() == horse_name.lower()]
             if len(indexes) == 1:
-                driver.get(links[0])
-                try:
-                    table = driver.find_element(By.CSS_SELECTOR, "table.pedigree-table")
+                buffer = BytesIO()
+                c = pycurl.Curl()
+                c.setopt(c.URL, links[0])
+                c.setopt(c.HTTPHEADER, headers)
+                c.setopt(c.WRITEDATA, buffer)
+                c.perform()
+                c.close()
+                r1 = buffer.getvalue().decode('utf-8')
+                soup1 = BeautifulSoup(r1, 'html.parser')
+                table = soup1.select_one("table.pedigree-table")
+                if table != None:
                     sheet_data.append(getSheetDataFrom(table))
-                except:
-                    print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
+                else: print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
             else:
-                driver.get(f"https://beta.allbreedpedigree.com/search?match=exact&breed=&sex=&query={horse_name.replace(' ', '+')}")
-                try:
-                    table = driver.find_element(By.CSS_SELECTOR, "table.pedigree-table")
+                buffer = BytesIO()
+                c = pycurl.Curl()
+                c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?match=exact&breed=&sex=&query={horse_name}')
+                c.setopt(c.HTTPHEADER, headers)
+                c.setopt(c.WRITEDATA, buffer)
+                c.perform()
+                c.close()
+                r2 = buffer.getvalue().decode('utf-8')
+                soup2 = BeautifulSoup(r2, 'html.parser')
+                table = soup2.select_one("table.pedigree-table")
+                if table != None:
                     sheet_data.append(getSheetDataFrom(table))
-                except:
-                    print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
-        except:
-            print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
+                else: print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
+        else: print("THREAD1: Not found (" + horse_name + ") in https://beta.allbreedpedigree.com/")
 
     if len(sheet_data) != 0:
         service.spreadsheets().values().update(

@@ -6,6 +6,8 @@ from bs4 import BeautifulSoup
 
 from constants import *
 
+LETTER_COLORS = ["Bay", "Bay Overo", "Bay Roan", "Black", "Black Overo", "Black Roan", "Black/Brown", "Blue Roan", "Brown", "Buckskin", "Buckskin Roan", "Champagne", "Chestnut", "Chestnut Overo", "Chestnut Roan", "Cremello", "Dark Bay/Brown", "Dark Chestnut", "Dun", "Dunalino", "Dunskin", "Gray", "Gray/Roan", "Grulla", "Liver Chestnut", "Overo", "Palomino", "Perlino", "Pinto", "Red Dun", "Red Roan", "Roan", "Sabino", "Silver Dapple", "Smoky Grulla", "Sorrel", "White"]
+
 worksheet = None
 headers = ["User-Agent: Python-PycURL", "Accept: */*"]
 
@@ -76,24 +78,14 @@ def extractPdf(file_path):
         return None
     else:
         tmp_names = []
-        tmp_vals = []
+        tmp_val = ""
         for i, val in enumerate(data):
+            if val.title() in LETTER_COLORS: continue
             if re.search(r'^\d{2}/\d{2}/\d{4}', val):
-                if len(tmp_vals) == 3:
-                    if i > 3:
-                        tmp_names.append(f"{tmp_vals[1]}{tmp_vals[2]}")
-                    else:
-                        tmp_names.append(f"{tmp_vals[0]}{tmp_vals[1]}{tmp_vals[2]}")
-                elif len(tmp_vals) == 2:
-                    if i > 2:
-                        tmp_names.append(tmp_vals[1])
-                    else:
-                        tmp_names.append(f"{tmp_vals[0]}{tmp_vals[1]}")
-                elif len(tmp_vals) == 1:
-                    tmp_names.append(tmp_vals[0])
-                tmp_vals = []
+                tmp_names.append(tmp_val)
+                tmp_val = ""
             else:
-                tmp_vals.append(val)
+                tmp_val += val
         names = [None] * 15
         for index, name in enumerate(tmp_names):
             if hasCurrentOwner:
@@ -114,6 +106,7 @@ def findSireFromSite(cn):
     c = pycurl.Curl()
     c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?query_type=check&search_bar=horse&g=5&inbred=Standard&breed=&query={horse_name}')
     c.setopt(c.HTTPHEADER, headers)
+    c.setopt(pycurl.FOLLOWLOCATION, 1)
     c.setopt(c.WRITEDATA, buffer)
     c.perform()
     c.close()
@@ -121,7 +114,7 @@ def findSireFromSite(cn):
     soup = BeautifulSoup(r, 'html.parser')
     table = soup.select_one("table.pedigree-table")
     if table != None:
-        print(getSireNameFromTable(table))
+        return getSireNameFromTable(table)
     else:
         tds = soup.select("table.layout-table td[class]:nth-child(1)")
         if tds != None or len(tds) != 0:
@@ -130,11 +123,12 @@ def findSireFromSite(cn):
             for td in tds:
                 txt_vals.append(td.text)
                 links.append(td.select_one("a").get("href"))
-            indexes = [x.strip() for x in txt_vals if x.strip().lower() == horse_name.lower()]
+            indexes = [x.strip() for x in txt_vals if x.strip().lower() == cn.lower()]
             if len(indexes) == 1:
                 buffer = BytesIO()
                 c = pycurl.Curl()
                 c.setopt(c.URL, links[0])
+                c.setopt(pycurl.FOLLOWLOCATION, 1)
                 c.setopt(c.HTTPHEADER, headers)
                 c.setopt(c.WRITEDATA, buffer)
                 c.perform()
@@ -143,13 +137,14 @@ def findSireFromSite(cn):
                 soup1 = BeautifulSoup(r1, 'html.parser')
                 table = soup1.select_one("table.pedigree-table")
                 if table != None:
-                    print(getSireNameFromTable(table))
+                    return getSireNameFromTable(table)
                 else: return ""
             else:
                 buffer = BytesIO()
                 c = pycurl.Curl()
                 c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?match=exact&breed=&sex=&query={horse_name}')
                 c.setopt(c.HTTPHEADER, headers)
+                c.setopt(pycurl.FOLLOWLOCATION, 1)
                 c.setopt(c.WRITEDATA, buffer)
                 c.perform()
                 c.close()
@@ -157,7 +152,7 @@ def findSireFromSite(cn):
                 soup2 = BeautifulSoup(r2, 'html.parser')
                 table = soup2.select_one("table.pedigree-table")
                 if table != None:
-                    print(getSireNameFromTable(table))
+                    return getSireNameFromTable(table)
                 else: return ""
         else: return ""
 
@@ -177,7 +172,8 @@ def updateGSData(file_name, sheetId, sheetName, indexOfHorse, sheetData, multich
             tmp_name = ""
             for choice_val in multichoices:
                 if choice_val[0] == f"({ext_names[i].lower()})":
-                    tmp_name = choice_val[1]
+                    if len(choice_val) > 1:
+                        tmp_name = choice_val[1]
             if tmp_name != "":
                 update_data.append(tmp_name)
             else:
@@ -210,7 +206,6 @@ def start(sheetId, sheetName, init_cnt):
     file_cnt = init_cnt
     while True:
         if os.path.exists("res/t2.txt"):
-            os.remove("res/t2.txt")
             if os.path.exists("res/t1.txt"):
                 with open("res/t1.txt", "r") as file:
                     c = file.read()
@@ -218,6 +213,7 @@ def start(sheetId, sheetName, init_cnt):
                     total_cnt = int(c)
                     if file_cnt >= total_cnt:
                         os.remove("res/t1.txt")
+                        os.remove("res/t2.txt")
                         break
         files = getOrderFiles()
         if len(files) > 0:
