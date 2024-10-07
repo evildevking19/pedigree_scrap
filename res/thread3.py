@@ -180,6 +180,7 @@ def updateGSData(file_name, sheetId, sheetName, indexOfHorse, sheetData, multich
                 update_data.append(f"({ext_names[i].lower()})")
         else:
             update_data.append(sire_name)
+
     for id, row in enumerate(sheetData):
         if len(row) != 0:
             if ext_names[0].lower() == row[indexOfHorse].lower():
@@ -191,6 +192,7 @@ def updateGSData(file_name, sheetId, sheetName, indexOfHorse, sheetData, multich
                         majorDimension='ROWS',
                         values=[update_data])
                 ).execute()
+                time.sleep(1)
     print("THREAD3: " + file_name)
     os.remove(file_path)
 
