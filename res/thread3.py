@@ -101,7 +101,7 @@ def extractPdf(file_path):
         return names
 
 def findSireFromSite(cn):
-    horse_name = cn.replace(" ", "+").replace("'", "")
+    horse_name = cn.replace(" ", "+").replace("'", "").encode("ascii", "ignore").decode("utf-8")
     buffer = BytesIO()
     c = pycurl.Curl()
     c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?query_type=check&search_bar=horse&g=5&inbred=Standard&breed=&query={horse_name}')

@@ -20,7 +20,7 @@ class Unbuffered(object):
 
 def searchNameFromABP(service, sheetId, sheetName, indexOfHorseHeader, horse_name, index):
     sheet_data = []
-    horse_name = horse_name.replace(" ", "+").replace("'", "")
+    horse_name = horse_name.replace(" ", "+").replace("'", "").encode("ascii", "ignore").decode("utf-8")
     buffer = BytesIO()
     c = pycurl.Curl()
     c.setopt(c.URL, f'https://beta.allbreedpedigree.com/search?query_type=check&search_bar=horse&g=5&inbred=Standard&breed=&query={horse_name}')

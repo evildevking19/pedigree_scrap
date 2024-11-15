@@ -15,7 +15,7 @@ def update_google_sheets(sheetId, data):
     service.spreadsheets().values().update(
             spreadsheetId=sheetId,
             valueInputOption='RAW',
-            range="horses!A1:F",
+            range="horses!A1:G",
             body=dict(
                 majorDimension='ROWS',
                 values=data)
@@ -94,10 +94,10 @@ def getRbData(filename):
     for i, name in enumerate(names):
         price = prices[i]
         if len(price) > 1:
-            data.append([name[0], name[1], name[2], price[0], price[1], price[2]])
+            data.append([name[0], name[1], name[2], price[0] + price[1] + price[2], price[0], price[1], price[2]])
         else:
-            data.append([name[0], name[1], name[2], 0, 0, 0])
-    data.append(["", "", "", "", "", ""])
+            data.append([name[0], name[1], name[2], 0, 0, 0, 0])
+    data.append(["", "", "", "", "", "", ""])
     return data
     
 def getPbData(filename):
@@ -157,8 +157,13 @@ def getPbData(filename):
                 if len(dataArr) == 3:
                     for i in range(3):
                         dataArr.append(0)
-                data.append(dataArr)
-    data.append(["", "", "", "", "", ""])
+                if len(dataArr) != 0:
+                    if len(dataArr) == 7:
+                        dataArr.pop(3)
+                    total = dataArr[3] + dataArr[4] + dataArr[5]
+                    dataArr.insert(3, total)
+                    data.append(dataArr)
+    data.append(["", "", "", "", "", "", ""])
     return data
 
 class Unbuffered(object):
@@ -177,7 +182,7 @@ def run(sheetId):
     sys.stdout = Unbuffered(sys.stdout)
     print("Processing...")
     sheet_data = []
-    sheet_data.append(["Horse", "Rider", "Time", "Owner Price", "Stallion Price", "Breeder Price"])
+    sheet_data.append(["Horse", "Rider", "Time", "Total Price", "Owner Price", "Stallion Price", "Breeder Price"])
     if not os.path.exists(REPORT_DIR_NAME):
         os.makedirs(REPORT_DIR_NAME)
     
@@ -192,10 +197,11 @@ def run(sheetId):
                 # with open('content.txt', 'w') as file:
                 #     file.write(content)
                 #     file.close()
-                if re.search(r'Amateur', content):
+                if re.search(r'Amateur', content) or re.search(r'Premiere Pink', content):
                     sheet_data.extend(getPbData(filename))
                 else:
                     sheet_data.extend(getRbData(filename))
-        
         update_google_sheets(sheetId, sheet_data)
         print("### Successfully updated! ###")
+
+# run("197EE8IN9fpvKd4Mmf7BNtLEYHU_ZY9DVla1bZxzatMU")
